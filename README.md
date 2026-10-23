@@ -1,6 +1,6 @@
 # FdF — каркасная 3D-модель карты высот
 
-![CI](https://github.com/egormswertik/fdf-python/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Poo09090/fdf-python/actions/workflows/ci.yml/badge.svg)
 
 ![скриншот](docs/screenshot.png)
 
@@ -24,7 +24,7 @@
 Для быстрой установки инструментов разработки можно использовать менеджер пакетов `uv` или обычный `pip`:
 
 ```bash
-git clone https://github.com/egormswertik/fdf-python.git
+git clone https://github.com/Poo09090/fdf-python.git
 cd fdf-python
 pip install pytest mypy ruff
 ```
