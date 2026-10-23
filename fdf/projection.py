@@ -1,4 +1,4 @@
-"""Модуль проекции 3D-координат на 2D-плоскость экрана и работы с цветом."""
+"""проекция и камера"""
 
 import math
 
@@ -6,7 +6,6 @@ from fdf.model import Map, Point
 
 
 def hex_to_rgb(hex_code: str) -> tuple[int, int, int]:
-    """Преобразует строку '#RRGGBB' в кортеж (r, g, b)."""
     s = hex_code.lstrip("#")
     if len(s) != 6:
         s = s.zfill(6)
@@ -14,26 +13,25 @@ def hex_to_rgb(hex_code: str) -> tuple[int, int, int]:
 
 
 def rgb_to_hex(r: int, g: int, b: int) -> str:
-    """Преобразует компоненты r, g, b (0-255) в строку '#RRGGBB' в верхнем регистре."""
-    r_clamped = max(0, min(255, r))
-    g_clamped = max(0, min(255, g))
-    b_clamped = max(0, min(255, b))
-    return f"#{r_clamped:02X}{g_clamped:02X}{b_clamped:02X}"
+    r_cl = max(0, min(255, r))
+    g_cl = max(0, min(255, g))
+    b_cl = max(0, min(255, b))
+    return f"#{r_cl:02X}{g_cl:02X}{b_cl:02X}"
 
 
 def lerp_color(color_a: str, color_b: str, t: float) -> str:
-    """Линейно интерполирует цвет между color_a и color_b по параметру t (0.0..1.0)."""
-    t_clamped = max(0.0, min(1.0, t))
+    # линейная интерполяция цвета
+    t_cl = max(0.0, min(1.0, t))
     r1, g1, b1 = hex_to_rgb(color_a)
     r2, g2, b2 = hex_to_rgb(color_b)
-    r = round(r1 + (r2 - r1) * t_clamped)
-    g = round(g1 + (g2 - g1) * t_clamped)
-    b = round(b1 + (b2 - b1) * t_clamped)
+    r = round(r1 + (r2 - r1) * t_cl)
+    g = round(g1 + (g2 - g1) * t_cl)
+    b = round(b1 + (b2 - b1) * t_cl)
     return rgb_to_hex(r, g, b)
 
 
 def height_color(z: int, z_min: int, z_max: int) -> str:
-    """Вычисляет цвет точки по высоте в палитре синий -> зелёный -> жёлтый -> красный."""
+    # градиент синий -> зеленый -> желтый -> красный
     if z_max <= z_min:
         return "#0000FF"
     t = max(0.0, min(1.0, (z - z_min) / (z_max - z_min)))
@@ -48,13 +46,13 @@ def height_color(z: int, z_min: int, z_max: int) -> str:
         t1, c1 = palette[i]
         t2, c2 = palette[i + 1]
         if t <= t2:
-            local_t = (t - t1) / (t2 - t1)
-            return lerp_color(c1, c2, local_t)
+            loc_t = (t - t1) / (t2 - t1)
+            return lerp_color(c1, c2, loc_t)
     return "#FF0000"
 
 
 class Camera:
-    """Камера, управляющая проекцией, масштабом и положением модели на экране."""
+    """управление положением и масштабом"""
 
     def __init__(
         self,
@@ -71,15 +69,14 @@ class Camera:
         self.isometric: bool = True
 
     def project(self, point: Point) -> tuple[float, float]:
-        """Проецирует 3D-точку (x, y, z) в 2D-координаты экрана (X, Y)."""
         if self.isometric:
-            # Изометрическая проекция по формулам лабораторной работы
+            # изометрия по формулам
             cos_a = math.cos(self.angle)
             sin_a = math.sin(self.angle)
             x_prime = (point.x - point.y) * cos_a
             y_prime = (point.x + point.y) * sin_a - (point.z * self.z_scale)
         else:
-            # Параллельная проекция (вид сверху, без учёта z)
+            # параллельная проекция вид сверху
             x_prime = float(point.x)
             y_prime = float(point.y)
 
@@ -88,7 +85,7 @@ class Camera:
         return x_screen, y_screen
 
     def fit(self, grid: Map, width: int, height: int) -> None:
-        """Подбирает scale и offset так, чтобы модель центрировалась и вписывалась в окно."""
+        # автоподгон масштаба под окно
         if len(grid) == 0:
             return
 
@@ -96,33 +93,30 @@ class Camera:
         temp_cam.angle = self.angle
         temp_cam.isometric = self.isometric
 
-        projected = [temp_cam.project(p) for p in grid]
-        xs = [pt[0] for pt in projected]
-        ys = [pt[1] for pt in projected]
+        proj = [temp_cam.project(p) for p in grid]
+        xs = [pt[0] for pt in proj]
+        ys = [pt[1] for pt in proj]
 
-        min_x = min(xs)
-        max_x = max(xs)
-        min_y = min(ys)
-        max_y = max(ys)
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
 
-        bbox_width = max_x - min_x
-        bbox_height = max_y - min_y
+        bbox_w = max_x - min_x
+        bbox_h = max_y - min_y
 
-        if bbox_width > 0 and bbox_height > 0:
-            scale_x = width / bbox_width
-            scale_y = height / bbox_height
+        if bbox_w > 0 and bbox_h > 0:
+            scale_x = width / bbox_w
+            scale_y = height / bbox_h
             self.scale = min(scale_x, scale_y) * 0.9
-        elif bbox_width > 0:
-            self.scale = (width / bbox_width) * 0.9
-        elif bbox_height > 0:
-            self.scale = (height / bbox_height) * 0.9
+        elif bbox_w > 0:
+            self.scale = (width / bbox_w) * 0.9
+        elif bbox_h > 0:
+            self.scale = (height / bbox_h) * 0.9
         else:
             self.scale = 20.0
 
         self.center(grid, width, height)
 
     def center(self, grid: Map, width: int, height: int) -> None:
-        """Пересчитывает offset_x и offset_y с сохранением текущего scale для центрирования."""
         if len(grid) == 0:
             return
 
@@ -130,20 +124,20 @@ class Camera:
         temp_cam.angle = self.angle
         temp_cam.isometric = self.isometric
 
-        projected = [temp_cam.project(p) for p in grid]
-        xs = [pt[0] for pt in projected]
-        ys = [pt[1] for pt in projected]
+        proj = [temp_cam.project(p) for p in grid]
+        xs = [pt[0] for pt in proj]
+        ys = [pt[1] for pt in proj]
 
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
 
-        center_bbox_x = (min_x + max_x) / 2.0 * self.scale
-        center_bbox_y = (min_y + max_y) / 2.0 * self.scale
-        self.offset_x = (width / 2.0) - center_bbox_x
-        self.offset_y = (height / 2.0) - center_bbox_y
+        cnt_x = (min_x + max_x) / 2.0 * self.scale
+        cnt_y = (min_y + max_y) / 2.0 * self.scale
+        self.offset_x = (width / 2.0) - cnt_x
+        self.offset_y = (height / 2.0) - cnt_y
 
     def zoom_at(self, factor: float, cx: float, cy: float) -> None:
-        """Изменяет масштаб с фиксированием точки (cx, cy), чтобы изображение не смещалось."""
+        # зум с фиксацией фокуса на курсоре
         new_scale = max(0.1, self.scale * factor)
         actual_ratio = new_scale / self.scale
         self.offset_x = cx - (cx - self.offset_x) * actual_ratio

@@ -1,4 +1,4 @@
-"""Точка входа программы FdF на Python."""
+"""точка входа в fdf"""
 
 import sys
 
@@ -8,7 +8,6 @@ from fdf.parser import parse_map
 
 
 def main() -> None:
-    """Основная функция запуска программы с обработкой аргументов командной строки."""
     if len(sys.argv) != 2:
         print("Использование: python main.py <файл.fdf>", file=sys.stderr)
         sys.exit(2)

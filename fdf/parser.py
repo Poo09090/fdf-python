@@ -1,4 +1,4 @@
-"""Модуль чтения и валидации файлов карт .fdf."""
+"""парсер файлов fdf"""
 
 from pathlib import Path
 
@@ -7,23 +7,15 @@ from fdf.model import Map, Point
 
 
 def parse_token(token: str, line_num: int, col_num: int) -> tuple[int, str | None]:
-    """Разбирает одиночный токен высоты и опционального цвета.
-
-    Примеры:
-    - "5" -> (5, None)
-    - "-3" -> (-3, None)
-    - "20,0xFF0000" -> (20, "#FF0000")
-    - "1,0xff" -> (1, "#0000FF")
-    """
     parts = token.split(",")
     if len(parts) > 2:
         raise MapFormatError(
-            f"'{token}' — некорректный формат значения",
+            f"'{token}' — неверный формат значения",
             line=line_num,
             column=col_num,
         )
 
-    # 1. Разбор высоты
+    # парсинг высоты z
     try:
         z = int(parts[0])
     except ValueError:
@@ -33,20 +25,20 @@ def parse_token(token: str, line_num: int, col_num: int) -> tuple[int, str | Non
             column=col_num,
         ) from None
 
-    # 2. Разбор цвета (если указан)
+    # парсинг цвета если задан
     color: str | None = None
     if len(parts) == 2:
         raw_color = parts[1].strip()
         if not raw_color.lower().startswith("0x"):
             raise MapFormatError(
-                f"'{raw_color}' — некорректный префикс цвета (ожидается 0x)",
+                f"'{raw_color}' — неверный префикс цвета (нужен 0x)",
                 line=line_num,
                 column=col_num,
             )
         hex_digits = raw_color[2:]
         if not hex_digits:
             raise MapFormatError(
-                f"'{raw_color}' — отсутствует значение цвета",
+                f"'{raw_color}' — нет значения цвета",
                 line=line_num,
                 column=col_num,
             )
@@ -54,14 +46,14 @@ def parse_token(token: str, line_num: int, col_num: int) -> tuple[int, str | Non
             color_int = int(hex_digits, 16)
         except ValueError:
             raise MapFormatError(
-                f"'{raw_color}' — некорректный шестнадцатеричный цвет",
+                f"'{raw_color}' — не hex цвет",
                 line=line_num,
                 column=col_num,
             ) from None
 
         if color_int < 0 or color_int > 0xFFFFFF or len(hex_digits) > 8:
             raise MapFormatError(
-                f"'{raw_color}' — значение цвета выходит за пределы RGB (0x000000-0xFFFFFF)",
+                f"'{raw_color}' — цвет вне rgb диапазона",
                 line=line_num,
                 column=col_num,
             )
@@ -71,14 +63,9 @@ def parse_token(token: str, line_num: int, col_num: int) -> tuple[int, str | Non
 
 
 def parse_map(file_path: str | Path) -> Map:
-    """Читает файл карты .fdf и возвращает объект Map.
-
-    При отсутствии файла не перехватывает OSError.
-    При ошибках формата возбуждает MapFormatError с указанием строки и колонки.
-    """
     path = Path(file_path)
 
-    # Не перехватываем OSError при открытии — по спецификации его обрабатывает main.py
+    # oserror не ловим по тз
     with path.open("r", encoding="utf-8") as f:
         raw_lines = f.readlines()
 
